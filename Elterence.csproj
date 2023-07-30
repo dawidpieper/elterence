@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="concentus" Version="1.1.7" />
+    <PackageReference Include="LibAES-CTR" Version="1.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="System.IO.Hashing" Version="7.0.0" />
+  </ItemGroup>
+
+<ItemGroup>
+    <Content Include="win32\*.*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>  
+    <Content Include="win64\*.*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>  
+</ItemGroup>
+
+<ItemGroup>
+  <Reference Include="Un4seen">
+    <HintPath>lib\Bass.Net.dll</HintPath>
+  </Reference>
+</ItemGroup>
+</Project>
