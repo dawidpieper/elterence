@@ -54,6 +54,7 @@ public enum MessageType: int {
 Audio=1,
 Text=2,
 Whisper=3,
+EncryptedWhisper=4,
 Reemit=201,
 Ping=251,
 Pong=252
@@ -309,6 +310,49 @@ var ec = new ChatMessageEventArgs();
 ec.User=user;
 ec.Message = Encoding.UTF8.GetString(message);
 ChatMessage?.Invoke(this, ec);
+break;
+case (int)MessageType.Whisper:
+if(_Transmitters.ContainsKey(user.UID)) {
+var transmitter = _Transmitters[user.UID];
+transmitter.Put(message, type, p1, p2, p3*256+p4, index);
+}
+break;
+case (int)MessageType.EncryptedWhisper:
+try {
+if(_Transmitters.ContainsKey(user.UID)) {
+byte[] enchead = new byte[256];
+Array.Copy(message, 0, enchead, 0, 256);
+byte[] head = _Key.Decrypt(enchead, RSAEncryptionPadding.Pkcs1);
+int keysize = head[0];
+byte[] key = new byte[keysize/8];
+Array.Copy(head, 1, key, 0, keysize/8);
+byte[] iv = new byte[16];
+Array.Copy(head, keysize/8+1, iv, 0, 16);
+byte[] frg1 = new byte[245 - (1+keysize/8+16)];
+Array.Copy(head, 245-frg1.Length, frg1, 0, frg1.Length);
+byte[] frg2 = null;
+byte[] result;
+if(message.Length>256) {
+using (Aes aes = Aes.Create()) {
+aes.Padding = PaddingMode.PKCS7;
+aes.Mode = CipherMode.CBC;
+aes.Key = key;
+aes.IV = iv;
+byte[] rest = new byte[message.Length-256];
+Array.Copy(message, 256, rest, 0, rest.Length);
+frg2 = aes.DecryptCbc(rest, iv, PaddingMode.PKCS7);
+}
+}
+int size = frg1.Length;
+if(frg2!=null) size+=frg2.Length;
+result = new byte[size];
+Array.Copy(frg1, 0, result, 0, frg1.Length);
+if(frg2!=null)
+Array.Copy(frg2, 0, result, frg1.Length, frg2.Length);
+var transmitter = _Transmitters[user.UID];
+transmitter.Put(result, (int)MessageType.Whisper, p1, p2, p3*256+p4, index);
+}
+} catch(Exception) {}
 break;
 }
 }
@@ -666,7 +710,6 @@ byte[] frame = new byte[bytes];
 Array.Copy(opusFrame, 0, frame, 0, bytes);
 if(_FrameID>60000) _FrameID=0;
 ++_FrameID;
-Console.WriteLine(_FrameID);
 Send((int)MessageType.Audio, frame, _Position.X, _Position.Y, _FrameID/256, _FrameID%256);
 
 }
@@ -678,6 +721,10 @@ _RecordBuffer = new float[leftSamples];
 Array.Copy(buf, buf.Count() - leftSamples, _RecordBuffer, 0, leftSamples);
 }
 return true;
+}
+
+public void Chat(string message) {
+Send((int)MessageType.Text, Encoding.UTF8.GetBytes(message));
 }
 }
 }
